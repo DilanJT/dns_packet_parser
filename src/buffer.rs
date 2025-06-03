@@ -33,7 +33,10 @@ impl BytePacketParser {
     // read one byte and move forward
     fn read(&mut self) -> Result<u8> {
         if self.pos >= 512 {
-            return Err("End of buffer reached".into());
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                "End of buffer"
+            ));
         }
 
         let res = self.buf[self.pos];
@@ -43,7 +46,10 @@ impl BytePacketParser {
 
     fn get(&mut self, pos: usize) -> Result<u8> {
         if pos >= 512 {
-            return Err("Position out of bounds".into());
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                "End of buffer"
+            ));
         }
         Ok(self.buf[pos])
     }
@@ -51,14 +57,17 @@ impl BytePacketParser {
     // get a range of bytes
     fn get_range(&mut self, start: usize, len: usize) -> Result<&[u8]> {
         if start + len >= 512 {
-            return Err("Range out of bounds".into());
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                "End of buffer"
+            ));
         }
         Ok(&self.buf[start..start + len])
     }
 
     // reading two bytes, stepping two steps forward
     /// use: DNS uses 16 bit numbers for things like packet IDs, record types, and counts. 
-    fn read_u16(&mut self) -> Result<u16> {
+    pub fn read_u16(&mut self) -> Result<u16> {
         let res = ((self.read()? as u16) << 8) | (self.read()? as u16);
         Ok(res)
     }
@@ -66,7 +75,7 @@ impl BytePacketParser {
     // Read four bytes, stepping four steps forward
     // We need this for : DNS uses 32-bit numbers for TTL values and IPv4 addresses. 
     // DNS context: Time-to-Live (how long to cache) and IP addresses are 32 bit values
-    fn read_u32(&mut self) -> Result<u32> {
+    pub fn read_u32(&mut self) -> Result<u32> {
         let res = ((self.read()? as u32) << 24)
             | ((self.read()? as u32) << 16)
             | ((self.read()? as u32) << 8)
@@ -97,7 +106,7 @@ impl BytePacketParser {
     /// The tricky part: Reading domain names, taking labels into consideration.
     /// Will take something like [3]www[6]google[3]com[0] and append
     /// www.google.com to outstr.
-    fn read_qname(&mut self, outstr: &mut String) -> Result<()> {
+    pub fn read_qname(&mut self, outstr: &mut String) -> Result<()> {
         let mut pos = self.pos(); // to remember where we started
 
         //track  whether or not we have jumped
@@ -115,7 +124,10 @@ impl BytePacketParser {
             // craft a packet with a cycle in the jump instructions. This guard against such packets
 
             if jumps_performed > max_jumps {
-                return Err(format!("Too many jumps in qname, max is {}", max_jumps).into());
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Limit of {} jumps exceeded", max_jumps)
+                ));
             }
 
             // At this point we are always at the beginning of a label, Recall that labels start with a length byte
@@ -175,5 +187,5 @@ impl BytePacketParser {
 }
 
 
-/// End goal 
-/// [HEADER 12 bytes][QUESTION][ANSWER][AUTHORITY][ADDITIONAL]
+// End goal 
+// [HEADER 12 bytes][QUESTION][ANSWER][AUTHORITY][ADDITIONAL]

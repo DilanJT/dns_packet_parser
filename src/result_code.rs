@@ -1,4 +1,5 @@
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ResultCode {
     NOERROR = 0, // Scuccess
     FORMERR = 1, // Your question is malformed
