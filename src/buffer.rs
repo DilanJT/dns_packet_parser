@@ -19,7 +19,7 @@ impl BytePacketParser {
 
 
     // skip positions
-    fn step(&mut self, steps: usize) -> Result<()> {
+    pub fn step(&mut self, steps: usize) -> Result<()> {
         self.pos += steps;
         Ok(())
     }
